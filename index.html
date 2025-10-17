@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Чи-Фань — полуфабрикаты</title>
+    <title>Чи-Фань — Аналитика выручки</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/iconfont/tabler-icons.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -120,7 +120,7 @@
                     <div class="row g-2 align-items-center">
                         <div class="col">
                             <h2 class="page-title">
-                                <i class="ti ti-chart-line me-2"></i> Чи-Фань — полуфабрикаты
+                                <i class="ti ti-chart-line me-2"></i> Чи-Фань — Аналитика выручки
                             </h2>
                         </div>
                         <div class="col-auto ms-auto d-print-none">
@@ -1115,7 +1115,7 @@
             }, AUTO_REFRESH_INTERVAL);
         }
 
-        function exportPDF(filter = 'all') {
+        function exportPDF(filter = 'sales') {
             const data = dataCache.current;
             if (!data) {
                 showToast('Нет данных для экспорта', 'error');
@@ -1124,114 +1124,84 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             doc.setFontSize(16);
-            doc.text('Чи-Фань - Отчет по выручке', 20, 20);
+            doc.text('Чи-Фань - Отчет по полуфабрикатам', 20, 20);
             doc.setFontSize(10);
             doc.text(`Период: ${currentStartDate} - ${currentEndDate}`, 20, 30);
-            doc.text(`Время обновления: ${data.time}`, 20, 35);
+            doc.text(`Время обновления: ${data.time || 'Неизвестно'}`, 20, 35);
             let y = 45;
 
-            if (filter === 'all' || filter === 'year-round' || filter === 'seasonal') {
-                doc.setFontSize(12);
-                doc.text('Основные метрики:', 20, y);
-                y += 10;
+            // Только для sales: полуфабрикаты
+            doc.setFontSize(12);
+            doc.text('Продажи полуфабрикатов по филиалам:', 20, y);
+            y += 10;
 
-                const total = data.total || {};
-                if (total.total_revenue > 0) doc.text(`Выручка: ${fmt.format(total.total_revenue || 0)} ₽`, 20, y); y += 7;
-                if (total.total_orders > 0) doc.text(`Заказы: ${total.total_orders || 0}`, 20, y); y += 7;
-                if (total.total_delivery_orders > 0) doc.text(`Доставка: ${total.total_delivery_orders || 0}`, 20, y); y += 7;
-                if (total.total_pickup_orders > 0) doc.text(`Самовывоз: ${total.total_pickup_orders || 0}`, 20, y); y += 7;
-                if (total.total_cafe_orders > 0) doc.text(`Кафе: ${total.total_cafe_orders || 0}`, 20, y); y += 15;
-
-                const venues = filter === 'year-round' ? data.year_round : 
-                              filter === 'seasonal' ? data.seasonal : 
-                              { ...data.year_round, ...data.seasonal };
-                doc.setFontSize(12);
-                doc.text('Филиалы:', 20, y);
-                y += 10;
-
-                const sortedVenues = Object.entries(venues || {})
-                    .filter(([venue, stats]) => isVenueActive(stats, data.sales[venue]))
-                    .sort((a, b) => (b[1].total_revenue || 0) - (a[1].total_revenue || 0));
-
-                sortedVenues.forEach(([venue, stats]) => {
-                    if (y > 270) {
+            const allVenues = [...YEAR_ROUND_VENUES, ...SEASONAL_VENUES];
+            allVenues.forEach(venue => {
+                const salesStats = data.sales[venue] || {};
+                if (isSalesActive(salesStats)) {
+                    if (y > 260) { // Улучшенная проверка для добавления страницы (оставляем запас)
                         doc.addPage();
                         y = 20;
                     }
+                    doc.setFontSize(11);
+                    doc.text(`${venue}:`, 20, y);
+                    y += 8; // Увеличенный отступ для читаемости
                     doc.setFontSize(10);
-                    doc.text(`${venue}: ${fmt.format(stats.total_revenue || 0)} ₽ (${stats.total_orders || 0} заказов)`, 20, y);
-                    y += 7;
-                    if (stats.delivery_orders > 0) {
-                        doc.text(`Доставка: ${stats.delivery_orders} (${fmt.format(stats.delivery_revenue || 0)} ₽)`, 25, y);
-                        y += 7;
-                    }
-                    if (stats.pickup_orders > 0) {
-                        doc.text(`Самовывоз: ${stats.pickup_orders} (${fmt.format(stats.pickup_revenue || 0)} ₽)`, 25, y);
-                        y += 7;
-                    }
-                    if (stats.cafe_orders > 0) {
-                        doc.text(`Кафе: ${stats.cafe_orders} (${fmt.format(stats.cafe_revenue || 0)} ₽)`, 25, y);
-                        y += 7;
-                    }
-                });
-            }
-
-            if (filter === 'all' || filter === 'sales') {
-                if (y > 250) {
-                    doc.addPage();
-                    y = 20;
-                }
-                doc.setFontSize(12);
-                doc.text('Полуфабрикаты:', 20, y);
-                y += 10;
-
-                const allVenues = [...YEAR_ROUND_VENUES, ...SEASONAL_VENUES];
-                allVenues.forEach(venue => {
-                    const salesStats = data.sales[venue] || {};
-                    if (isSalesActive(salesStats)) {
-                        if (y > 270) {
+                    const categories = ['Лапша', 'Рис', 'Курица', 'Свинина', 'Креветка', 'Бекон', 'Соломка', 'Кубик'];
+                    categories.forEach(cat => {
+                        const value = salesStats[cat] || 0;
+                        if (value > 0) {
+                            if (y > 260) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            doc.text(`${cat}: ${value.toFixed(cat === 'Соломка' || cat === 'Кубик' ? 2 : 0)}`, 25, y);
+                            y += 7;
+                        }
+                    });
+                    const saladSup = salesStats['Салаты - Супы'] || {};
+                    if (Object.values(saladSup).some(v => v > 0)) {
+                        if (y > 260) {
                             doc.addPage();
                             y = 20;
                         }
-                        doc.setFontSize(10);
-                        doc.text(`${venue}:`, 20, y);
+                        doc.text('Салаты - Супы:', 25, y);
                         y += 7;
-                        const categories = ['Лапша', 'Рис', 'Курица', 'Свинина', 'Креветка', 'Бекон', 'Соломка', 'Кубик'];
-                        categories.forEach(cat => {
-                            const value = salesStats[cat] || 0;
+                        Object.entries(saladSup).forEach(([item, value]) => {
                             if (value > 0) {
-                                doc.text(`${cat}: ${value.toFixed(cat === 'Соломка' || cat === 'Кубик' ? 2 : 0)}`, 25, y);
+                                if (y > 260) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.text(`${item}: ${value}`, 30, y);
                                 y += 7;
                             }
                         });
-                        const saladSup = salesStats['Салаты - Супы'] || {};
-                        if (Object.values(saladSup).some(v => v > 0)) {
-                            doc.text('Салаты - Супы:', 25, y);
-                            y += 7;
-                            Object.entries(saladSup).forEach(([item, value]) => {
-                                if (value > 0) {
-                                    doc.text(`${item}: ${value}`, 30, y);
-                                    y += 7;
-                                }
-                            });
-                        }
-                        const pelmeniBao = salesStats['Пельмени - Бао-банс'] || {};
-                        if (Object.values(pelmeniBao).some(v => v > 0)) {
-                            doc.text('Пельмени - Бао-банс:', 25, y);
-                            y += 7;
-                            Object.entries(pelmeniBao).forEach(([item, value]) => {
-                                if (value > 0) {
-                                    doc.text(`${item}: ${value}`, 30, y);
-                                    y += 7;
-                                }
-                            });
-                        }
-                        y += 5;
                     }
-                });
-            }
+                    const pelmeniBao = salesStats['Пельмени - Бао-банс'] || {};
+                    if (Object.values(pelmeniBao).some(v => v > 0)) {
+                        if (y > 260) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.text('Пельмени - Бао-банс:', 25, y);
+                        y += 7;
+                        Object.entries(pelmeniBao).forEach(([item, value]) => {
+                            if (value > 0) {
+                                if (y > 260) {
+                                    doc.addPage();
+                                    y = 20;
+                                }
+                                doc.text(`${item}: ${value}`, 30, y);
+                                y += 7;
+                            }
+                        });
+                    }
+                    y += 10; // Отступ между филиалами
+                }
+            });
 
-            doc.save(`chifan_report_${currentStartDate}_${filter}.pdf`);
+            doc.save(`chifan_polufabrikaty_${currentStartDate}.pdf`);
             showToast('PDF успешно экспортирован');
         }
 

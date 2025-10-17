@@ -155,17 +155,6 @@
                         <div class="card-body">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <div class="input-group">
-                                        <span class="input-group-text">С:</span>
-                                        <input type="date" class="form-control" id="start-date">
-                                        <span class="input-group-text">По:</span>
-                                        <input type="date" class="form-control" id="end-date">
-                                        <button class="btn btn-primary" onclick="loadCustomData()">
-                                            <i class="ti ti-download me-2"></i> Загрузить
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
                                     <div class="btn-list">
                                         <button class="btn" onclick="setPeriod('today', event)">Сегодня</button>
                                         <button class="btn" onclick="setPeriod('yesterday', event)">Вчера</button>
@@ -444,8 +433,6 @@
             }
             const startStr = formatDateForInput(start);
             const endStr = formatDateForInput(end);
-            document.getElementById('start-date').value = startStr;
-            document.getElementById('end-date').value = endStr;
             event.target.parentNode.querySelectorAll('.btn').forEach(btn => btn.classList.remove('btn-primary'));
             event.target.classList.add('btn-primary');
             load(startStr, endStr);
@@ -1031,24 +1018,6 @@
             updateChartThemes();
         }
 
-        function loadCustomData() {
-            const startDate = document.getElementById('start-date').value;
-            const endDate = document.getElementById('end-date').value;
-            if (!startDate || !endDate) {
-                showToast('Выберите начальную и конечную дату', 'error');
-                return;
-            }
-            if (new Date(startDate) > new Date(endDate)) {
-                showToast('Начальная дата не может быть позже конечной', 'error');
-                return;
-            }
-            const periodText = startDate === endDate ?
-                `за ${new Date(startDate).toLocaleDateString('ru-RU')}` :
-                `с ${new Date(startDate).toLocaleDateString('ru-RU')} по ${new Date(endDate).toLocaleDateString('ru-RU')}`;
-            showToast(`Загрузка данных ${periodText}`);
-            load(startDate, endDate);
-        }
-
         async function load(startDateStr, endDateStr) {
             const updateEl = document.getElementById('last-update');
             if (updateEl) {
@@ -1276,8 +1245,6 @@
             // Установка дат по умолчанию
             const businessDay = getCurrentBusinessDay();
             const businessDayStr = formatDateForInput(businessDay);
-            document.getElementById('start-date').value = businessDayStr;
-            document.getElementById('end-date').value = businessDayStr;
             
             // Активная кнопка "Сегодня"
             document.querySelector('.btn-list .btn').classList.add('btn-primary');
